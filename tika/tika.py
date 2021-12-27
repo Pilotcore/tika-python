@@ -166,7 +166,7 @@ if os.getenv('TIKA_LOG_FILE', 'tika.log'):
 log.setLevel(logging.INFO)
 
 Windows = True if platform.system() == "Windows" else False
-TikaVersion = os.getenv('TIKA_VERSION', '1.24')
+TikaVersion = os.getenv('TIKA_VERSION', '2.2.0')
 TikaJarPath = os.getenv('TIKA_PATH', tempfile.gettempdir())
 TikaFilesPath = tempfile.gettempdir()
 TikaServerLogFilePath = log_path
@@ -647,12 +647,18 @@ def startServer(tikaServerJar, java_path = TikaJava, java_args = TikaJavaArgs, s
 
     # setup command string
     cmd_string = ""
-    if not config_path:
-        cmd_string = '%s %s -cp %s org.apache.tika.server.core.TikaServerCli --port %s --host %s &' \
-                     % (java_path, java_args, classpath, port, host)
+    main_class = ""
+    if TikaVersion.startswith("2"):
+        main_class = "org.apache.tika.server.core.TikaServerCli"
     else:
-        cmd_string = '%s %s -cp %s org.apache.tika.server.core.TikaServerCli --port %s --host %s --config %s &' \
-                     % (java_path, java_args, classpath, port, host, config_path)
+        main_class = "org.apache.tika.server.TikaServerCli"
+
+    if not config_path:
+        cmd_string = '%s %s -cp "%s" %s --port %s --host %s &' \
+                     % (java_path, java_args, classpath, main_class, port, host)
+    else:
+        cmd_string = '%s %s -cp "%s" %s --port %s --host %s --config %s &' \
+                     % (java_path, java_args, classpath, main_class, port, host, config_path)
 
     # Check that we can write to log path
     try:
@@ -688,7 +694,11 @@ def startServer(tikaServerJar, java_path = TikaJava, java_args = TikaJavaArgs, s
     while try_count < TikaStartupMaxRetry:
         with open(tika_log_file_path, "r") as tika_log_file_tmp:
             # check for INFO string to confirm listening endpoint
-            if "Started Apache Tika server" in tika_log_file_tmp.read():
+            if TikaVersion.startswith("2"):
+                expr_search = "Started Apache Tika server"
+            else:
+                expr_search = "Started Apache Tika server at"
+            if expr_search in tika_log_file_tmp.read():
                 is_started = True
             else:
                 log.warning("Failed to see startup log message; retrying...")

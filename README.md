@@ -283,6 +283,70 @@ Example usage as python client:
 -- jsonOutput = parse1('all', filename)
 ```
 
+Running Tika on AWS Lambda
+==========================
+
+Running on AWS Lambda or Local Lambda Testing has never been easier. You can use attached container image to run Tika on AWS Lambda
+
+See [here](https://github.com/Pilotcore/tika-python/blob/2.2.0/lambda/Dockerfile) for more information.
+
+To build the docker file, use the following command. The command will also download the TIKA libraries from Apache Library Archives.
+
+```bash
+docker build -t tika-lambda .
+```
+
+Run the Tika Lambda docker container locally use the following command. 
+
+Make sure to pass the appropriate AWS credentials into the container. You can do this various ways. A simple way is to use the canonical credential environment variables - eg. AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+
+```bash
+docker run -d -v ~/.aws-lambda-rie:/aws-lambda -p 9000:8080 \
+    --entrypoint /aws-lambda/aws-lambda-rie --name tika-lambda \
+    tika-lambda \
+        /usr/local/bin/python -m awslambdaric app.handler
+```
+
+To test the Lambda Invocation, pass a sample JSON payload that contains the S3 Event triggered when you upload a file into a bucket.
+
+```bash
+curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{
+  "Records": [
+    {
+      "eventVersion": "2.1",
+      "eventSource": "aws:s3",
+      "awsRegion": "ca-central-1",
+      "eventTime": "2021-09-16T18:00:45.396Z",
+      "eventName": "ObjectCreated:Put",
+      "userIdentity": {
+        "principalId": "AWS:ARO:first_last"
+      },
+      "requestParameters": {
+        "sourceIPAddress": "127.0.0.1"
+      },
+      "s3": {
+        "s3SchemaVersion": "1.0",
+        "configurationId": "tf-s3-lambda-20210916114950306000000001",
+        "bucket": {
+          "name": "tika-dev-test-bucket",
+          "ownerIdentity": {
+            "principalId": "A3U"
+          },
+          "arn": "arn:aws:s3:::tika-dev-test-bucket"
+        },
+        "object": {
+          "key": "TEST_FILE.PDF",
+          "size": 1000,
+          "eTag": "3156963f5e5ef0a0a4eb070ff004f564",
+          "versionId": "x",
+          "sequencer": "y"
+        }
+      }
+    }
+  ]
+  }'
+```
+
 Questions, comments?
 ===================
 Send them to [Chris A. Mattmann](mailto:chris.a.mattmann@jpl.nasa.gov).
